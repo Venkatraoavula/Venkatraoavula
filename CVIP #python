@@ -1,0 +1,75 @@
+
+import tkinter as tk
+import os
+import pyaudio
+import wave
+from datetime import datetime
+
+class VoiceRecorderApp:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Voice Recorder")
+
+        self.record_button = tk.Button(self.master, text="Record", command=self.start_recording)
+        self.record_button.pack(pady=10)
+
+        self.stop_button = tk.Button(self.master, text="Stop", command=self.stop_recording, state=tk.DISABLED)
+        self.stop_button.pack(pady=10)
+
+        self.save_button = tk.Button(self.master, text="Save Recording", command=self.save_recording, state=tk.DISABLED)
+        self.save_button.pack(pady=10)
+
+        self.file_name = ""
+        self.frames = []
+        self.is_recording = False
+
+        self.p = pyaudio.PyAudio()
+        self.stream = None
+
+    def start_recording(self):
+        self.file_name = f"Recording_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+        self.stream = self.p.open(format=pyaudio.paInt16,
+                                 channels=1,
+                                 rate=44100,
+                                 input=True,
+                                 frames_per_buffer=1024)
+        self.is_recording = True
+
+        self.record_button.config(state=tk.DISABLED)
+        self.stop_button.config(state=tk.NORMAL)
+        self.save_button.config(state=tk.DISABLED)
+
+        self.frames = []
+        self.record()
+
+    def record(self):
+        if self.is_recording:
+            data = self.stream.read(1024)
+            self.frames.append(data)
+            self.master.after(10, self.record)
+
+    def stop_recording(self):
+        self.is_recording = False
+        self.stream.stop_stream()
+        self.stream.close()
+
+        self.record_button.config(state=tk.NORMAL)
+        self.stop_button.config(state=tk.DISABLED)
+        self.save_button.config(state=tk.NORMAL)
+
+    def save_recording(self):
+        wf = wave.open(self.file_name, 'wb')
+        wf.setnchannels(1)
+        wf.setsampwidth(self.p.get_sample_size(pyaudio.paInt16))
+        wf.setframerate(44100)
+        wf.writeframes(b''.join(self.frames))
+        wf.close()
+        self.file_name = ""
+        self.frames = []
+        self.save_button.config(state=tk.DISABLED)
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = VoiceRecorderApp(root)
+    root.mainloop()
